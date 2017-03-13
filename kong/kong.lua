@@ -206,6 +206,16 @@ function Kong.ssl_certificate()
   end
 end
 
+function Kong.access()
+  core.access.before()
+
+  for plugin, plugin_conf in plugins_iterator(singletons.loaded_plugins, true) do
+    plugin.handler:access(plugin_conf)
+  end
+
+  core.access.after()
+end
+
 function Kong.balancer()
   local addr = ngx.ctx.balancer_address
   addr.tries = addr.tries + 1
@@ -233,6 +243,10 @@ function Kong.balancer()
     end
   end
 
+  -- if set `balancer_address.host_header` is the original header to be preserved
+  var.upstream_host = balancer_address.host_header or
+      balancer_address.hostname..":"..balancer_address.port
+
   -- set the targets as resolved
   local ok, err = set_current_peer(addr.ip, addr.port)
   if not ok then
@@ -247,16 +261,6 @@ function Kong.balancer()
   if not ok then
     ngx.log(ngx.ERR, "could not set upstream timeouts: ", err)
   end
-end
-
-function Kong.access()
-  core.access.before()
-
-  for plugin, plugin_conf in plugins_iterator(singletons.loaded_plugins, true) do
-    plugin.handler:access(plugin_conf)
-  end
-
-  core.access.after()
 end
 
 function Kong.header_filter()

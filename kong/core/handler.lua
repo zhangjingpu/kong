@@ -92,7 +92,7 @@ return {
       end
 
       local balancer_address = {
-        type                 = utils.hostname_type(upstream.host),  -- the type of `host`; ipv4, ipv6 or name
+        type                 = utils.hostname_type(upstream.host),  -- the type of `host`; "ipv4", "ipv6" or "name"
         host                 = upstream.host,  -- target host per `upstream_url`
         port                 = upstream.port,  -- final target port
         tries                = 0,              -- retry counter
@@ -100,10 +100,12 @@ return {
         connect_timeout      = api.upstream_connect_timeout or 60000,
         send_timeout         = api.upstream_send_timeout or 60000,
         read_timeout         = api.upstream_read_timeout or 60000,
+        -- hash              = nil,            -- integer hash value for consistent hashing
         -- ip                = nil,            -- final target IP address
         -- failures          = nil,            -- for each failure an entry { name = "...", code = xx }
         -- balancer          = nil,            -- the balancer object, in case of a balancer
         -- hostname          = nil,            -- the hostname belonging to the final target IP
+        host_header          = host_header,    -- host header to be preserved, if set
       }
 
       var.upstream_scheme = upstream.scheme
@@ -111,6 +113,15 @@ return {
       ctx.api              = api
       ctx.balancer_address = balancer_address
 
+    end,
+    -- Only executed if the `router` module found an API and allows nginx to proxy it.
+    after = function()
+      local ctx = ngx.ctx
+      local var = ngx.var
+      local balancer_address = ctx.balancer_address
+
+      -- we're executing the first balancer access here as we're not limited
+      -- by the access-context limitations here
       local ok, err = balancer_execute(balancer_address)
       if not ok then
         return responses.send_HTTP_INTERNAL_SERVER_ERROR("failed the initial "..
@@ -118,19 +129,11 @@ return {
           "' with: "..tostring(err))
       end
 
-      -- if set `host_header` is the original header to be preserved
-      var.upstream_host = host_header or 
-          balancer_address.hostname..":"..balancer_address.port
-
-    end,
-    -- Only executed if the `router` module found an API and allows nginx to proxy it.
-    after = function()
-      local ctx = ngx.ctx
       local now = get_now()
 
       ctx.KONG_ACCESS_TIME = now - ctx.KONG_ACCESS_START -- time spent in Kong's access_by_lua
       ctx.KONG_ACCESS_ENDED_AT = now
-      -- time spent in Kong before sending the reqeust to upstream
+      -- time spent in Kong before sending the request to upstream
       ctx.KONG_PROXY_LATENCY = now - ngx.req.start_time() * 1000 -- ngx.req.start_time() is kept in seconds with millisecond resolution.
       ctx.KONG_PROXIED = true
     end

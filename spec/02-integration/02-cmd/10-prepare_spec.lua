@@ -9,7 +9,7 @@ describe("kong prepare", function()
   end)
 
   it("prepares prefix with default conf/prefix", function()
-    assert(helpers.kong_exec "prepare")
+    assert(helpers.kong_exec("prepare -p " .. helpers.test_conf.prefix))
   end)
   
   describe("errors", function()

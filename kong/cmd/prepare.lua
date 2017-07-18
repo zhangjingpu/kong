@@ -10,18 +10,25 @@ local function execute(args)
   local ok, err = prefix_handler.prepare_prefix(conf, args.nginx_conf)
   if not ok then
     log.verbose("could not prepare Kong")
-    error(err) -- report to main error handler
+    error("could not prepare Kong prefix at " .. conf.prefix .. ": " .. err)
   end
 end
 
 local lapp = [[
 Usage: kong prepare [OPTIONS]
 
-Prepares the Kong prefix in the configured prefix directory.
+Prepare the Kong prefix in the configured prefix directory. This command can
+be used to start Kong from the nginx binary without using the 'kong start' 
+command.
+
+Example usage:
+  kong prepare -p /usr/local/kong -c kong.conf && kong migrations up &&
+    nginx -p /usr/local/kong -c /usr/local/kong/nginx.conf
 
 Options:
  -c,--conf    (optional string) configuration file
  -p,--prefix  (optional string) override prefix directory
+ --nginx-conf (optional string) custom Nginx configuration template
 ]]
 
 return {

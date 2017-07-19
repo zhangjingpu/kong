@@ -52,12 +52,8 @@ function _M.find_api_by_name_or_id(self, dao_factory, helpers)
   end
 end
 
--- this function will lookup a plugin by name or id, but REQUIRES
--- also the api to be specified by name or id
-function _M.find_plugin_by_name_or_id(self, dao_factory, helpers)
-  _M.find_api_by_name_or_id(self, dao_factory, helpers)
-
-  local rows, err = _M.find_by_id_or_field(dao_factory.plugins, { api_id = self.api.id },
+function _M.find_plugin_by_name_or_id(self, dao_factory, filter, helpers)
+  local rows, err = _M.find_by_id_or_field(dao_factory.plugins, filter,
                                            self.params.plugin_name_or_id, "name")
 
   if err then
@@ -65,10 +61,11 @@ function _M.find_plugin_by_name_or_id(self, dao_factory, helpers)
   end
   self.params.plugin_name_or_id = nil
 
-  -- We know combi of api+plugin is unique for plugins, hence if we have a row, it must be the only one
+  -- TODO: Decide what to do when/if rows contains more than one register here
   self.plugin = rows[1]
   if not self.plugin then
     return helpers.responses.send_HTTP_NOT_FOUND()
+
   end
 end
 

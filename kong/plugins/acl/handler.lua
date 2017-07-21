@@ -1,47 +1,76 @@
-local singletons = require "kong.singletons"
-local BasePlugin = require "kong.plugins.base_plugin"
-local cache = require "kong.tools.database_cache"
-local responses = require "kong.tools.responses"
-local utils = require "kong.tools.utils"
-local constants = require "kong.constants"
+local singletons   = require "kong.singletons"
+local BasePlugin   = require "kong.plugins.base_plugin"
+local cache        = require "kong.tools.database_cache"
+local responses    = require "kong.tools.responses"
+local utils        = require "kong.tools.utils"
+local constants    = require "kong.constants"
+
 
 local table_insert = table.insert
 local table_concat = table.concat
-local ipairs = ipairs
-local empty = {}
+local ngx          = ngx
+local set_header   = ngx.req.set_header
+local ipairs       = ipairs
+local type         = type
+local next         = next
+local empty        = {}
+
 
 local ACLHandler = BasePlugin:extend()
 
+
 ACLHandler.PRIORITY = 950
+
 
 function ACLHandler:new()
   ACLHandler.super.new(self, "acl")
 end
 
+
 local function load_acls_into_memory(consumer_id)
-  local results, err = singletons.dao.acls:find_all {consumer_id = consumer_id}
+  local results, err = singletons.dao.acls:find_all { consumer_id = consumer_id }
   if err then
     return nil, err
   end
   return results
 end
 
+
 function ACLHandler:access(conf)
   ACLHandler.super.access(self)
 
   local consumer_id
-  if ngx.ctx.authenticated_credential then
-    consumer_id = ngx.ctx.authenticated_credential.consumer_id
-  else
-    return responses.send_HTTP_FORBIDDEN("Cannot identify the consumer, add an authentication plugin to use the ACL plugin")
+  local ctx = ngx.ctx
+
+  local authenticated_consumer = ctx.authenticated_consumer
+  if authenticated_consumer and type(authenticated_consumer) == "table" then
+    consumer_id = authenticated_consumer.id
+  end
+
+  if not consumer_id then
+    local authenticated_credential = ctx.authenticated_credential
+    if authenticated_credential and type(authenticated_credential) == "table" then
+      consumer_id = authenticated_credential.consumer_id
+    end
+  end
+
+  if not consumer_id then
+    return responses.send_HTTP_FORBIDDEN(
+      "Cannot identify the consumer, add an authentication plugin to use the ACL plugin"
+    )
   end
 
   -- Retrieve ACL
-  local acls, err = cache.get_or_set(cache.acls_key(consumer_id), nil,
-                                load_acls_into_memory, consumer_id)
+  local acls, err = cache.get_or_set(
+    cache.acls_key(consumer_id),
+    nil,
+    load_acls_into_memory,
+    consumer_id)
+
   if err then
     responses.send_HTTP_INTERNAL_SERVER_ERROR(err)
   end
+
   if not acls then
     acls = {}
   end
@@ -60,14 +89,17 @@ function ACLHandler:access(conf)
   if next(conf.whitelist or empty) then
     if not next(acls or empty) then
       block = true
+
     else
       local contains
+
       for _, v in ipairs(acls) do
         if utils.table_contains(conf.whitelist, v.group) then
           contains = true
           break
         end
       end
+
       if not contains then
         block = true
       end
@@ -83,7 +115,9 @@ function ACLHandler:access(conf)
   for _, v in ipairs(acls) do
     table_insert(str_acls, v.group)
   end
-  ngx.req.set_header(constants.HEADERS.CONSUMER_GROUPS, table_concat(str_acls, ", "))
+
+  set_header(constants.HEADERS.CONSUMER_GROUPS, table_concat(str_acls, ", "))
 end
+
 
 return ACLHandler

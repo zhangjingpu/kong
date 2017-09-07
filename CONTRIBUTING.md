@@ -127,7 +127,7 @@ When contributing, be weary of a few things:
   When proposing a change in this part of the documentation, consider proposing
   it for older versions as well.
   Example: if you fix a typo in `app/docs/0.10.x/configuration.md`, this typo
-  may also be present in `app/docs/0.9.x/configuraiton.md`.
+  may also be present in `app/docs/0.9.x/configuration.md`.
 
 [Back to TOC](#table-of-contents)
 
@@ -192,12 +192,12 @@ to verify a few things:
 - Do not update CHANGELOG.md yourself. Your change will be included there in
   due time if it is accepted, no worries!
 
-If the above guidelines are respected, your Pull Requests has all its chances
+If the above guidelines are respected, your Pull Request has all its chances
 to be considered and will be reviewed by a maintainer.
 
 If you are asked to update your patch by a reviewer, please do so! Remember:
 **you are responsible for pushing your patch forward**. If you contributed it,
-you probably are the one in need of it. You must be prepared to apply changes
+you are probably the one in need of it. You must be prepared to apply changes
 to it if necessary.
 
 If your Pull Request was accepted, congratulations! You are now an official
@@ -292,8 +292,9 @@ accepted types are:
 - **perf**: A code change that significantly improves performance
 - **refactor**: A code change that neither fixes a bug nor adds a feature, and
   is too big to be considered just `perf`
-- **chore**: Changes related to the build process, the dependencies, or
-  auxiliary tools and libraries such as LuaRocks, Travis-ci, etc...
+- **chore**: Maintenance changes related to code cleaning that isn't
+  considered part of a refactor, build process updates, dependency bumps, or
+  auxiliary tools and libraries updates (LuaRocks, Travis-ci, etc...).
 
 
 ##### Scope
@@ -408,7 +409,7 @@ suite.
 - `spec/02-integration` contains tests that start Kong (connected to a running
   database), execute Admin API and proxy requests against it, and verify the
   output
-- `spec/03-plugis` contains tests (both unit and integration) for the bundled
+- `spec/03-plugins` contains tests (both unit and integration) for the bundled
   plugins (those plugins still live in the core repository as of now, but will
   eventually be externalized)
 
@@ -508,9 +509,9 @@ practices:
   ```
 
 And finally, most importantly: use your best judgement to design an
-efficient algorithm. Doing so will always be more performant than a poorly
-design algorithms, even following all the performance tricks of the language
-you are using. :smile:
+efficient algorithm. Doing so will always be more performant than a
+poorly-designed algorithm, even following all the performance tricks of the
+language you are using. :smile:
 
 [Back to TOC](#table-of-contents)
 
@@ -786,15 +787,17 @@ if str then
 end
 ```
 
-When creating multiple branches **do** include a blank line above the `elseif`
-and `else` statements:
+When creating multiple branches that span multiple lines, **do** include a
+blank line above the `elseif` and `else` statements:
 
 ```lua
 -- bad
 if foo then
   do_stuff()
+  keep_doing_stuff()
 elseif bar then
   do_other_stuff()
+  keep_doing_other_stuff()
 else
   error()
 end
@@ -802,14 +805,31 @@ end
 -- good
 if thing then
   do_stuff()
+  keep_doing_stuff()
 
 elseif bar then
   do_other_stuff()
+  keep_doing_other_stuff()
 
 else
   error()
 end
 ```
+
+For one-line blocks, blank lines are not necessary:
+
+```lua
+--- good
+if foo then
+  do_stuff()
+else
+  error("failed!")
+end
+```
+
+Note in the correct "long" example that if some branches are long, then all
+branches are created with the preceding blank line (including the one-liner
+`else` case).
 
 When a branch returns, **do not** create subsequent branches, but write the
 rest of your logic on the parent branch:
